@@ -1,0 +1,63 @@
+03/19/2013
+******************************************************************
+GFADD.bash, GFADD_LOG.jar, plot.bash: Jay-Yoon Lee
+******************************************************************
+
+------------------------------------------------------------------
+Requirements:
+------------------------------------------------------------------
+Java runtime
+Gnuplot - if gnuplot is not installed, comment out line 37-40 in GFADD.bash. *No* plot showing the outliers will be generated.
+------------------------------------------------------------------
+To run: 
+------------------------------------------------------------------
+1) make demo for a short demo on a example two feature data.
+2) If you want to run it on a different file or different # of Grid, you have 2 choices:
+   (a) change the DATADIRS value in the makefile, so that it holds
+       the name of the file you want to analyze.
+       bash GFADD.bash <filename> <number of grid>
+   (b) go into GFADD.bash and modify inplist and grid variables which represent input 		file, and grid size resepctively.
+3) Note that the grid=0 represents FADD (Fast Anomaly Detection algorithm given Duplicates) and other grid numbers represent GFADD, grid based FADD, with that grid number for each feature space.
+4) Feautres can be selected by modifying the "features" variable on GFADD.bash. For example, feature="3,4" means that the features are on 3rd and 4th column of the tab-separated or space-separated data file.
+5) Modify "startDate" and "endDate" to a range of dates for an experiment. This will control dates recorded in text files that will be imported to the database.
+6) "k" for k-nearest neighbor algorithm can be modified by modifying line 18 of GFADD.bash.
+7) For plotting with gnuplot, filename_gridsize_forGnuplot.txt is generated. I assumed that ID, date is in the first two columns, so if you use 2-d feature, the coordinates will be on 3rd and 4th column. Note that higher dimension plots are not supported.
+8) The outcomes will be created under 'gfadd' folder.
+
+** GFADD.bash is using k=10 for NN search, and reports outNo=10 outliers.
+Both values can be changed in the file. 
+------------------------------------------------------------------
+Input:
+------------------------------------------------------------------
+A space-separated file with n columns: each column corresponds to
+one feature (e.g., node-degree, triangles). We assume that the
+feature extraction is already done by some other software (e.g.,
+PEGASUS), which generates the above-mentioned space-separated file.
+
+------------------------------------------------------------------
+Outputs:
+------------------------------------------------------------------
+1) <input_filename>_<girdsize>_forGnuplot.txt: contains the top outlier points
+   (top 10, by default)
+2) <input_filename>-<gridsize>-plot.png: plot of all the data points. The 
+   outliers are annotated by triangles (the bigger the triangle, the
+   higher the 'anomalousness' score of the point).
+3) <input_filename>_<knn>_<gridsize>_resultScore.txt: contains score, rank informations 
+   in a format that can be imported into resultScore table. 
+   Format: runID || algoID || nodeID || node DataType || rawScore || normScore (score/max) 
+   || rankedScore || rank || endDate
+   e.g.) 
+   LOAD DATA LOCAL INFILE 
+   '<input_filename>_<knn>_<gridsize>_resultScore.txt'
+   INTO TABLE resultScores
+   LINES TERMINATED BY '\n'
+   (runID, algoID, nodeID, dataTypeID, rawScore, normScore, rankedScore, rank, endDate);
+4) '<input_filename>_<knn>_<gridsize>_executionID': contains experimentation ID informations.
+   in a format that scan be imported into resultScore table.
+   Format: runID || flowID || startDate || endDateLOAD
+   e.g.)
+   LOAD DATA LOCAL INFILE 
+   '<input_filename>_<knn>_<gridsize>_executionID
+   INTO TABLE executionID'
+   LINES TERMINATED BY '\n'
+   (runID, algoID, startDate, endDate);

@@ -1,0 +1,149 @@
+package perseus;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+
+import pegasus.ConCmpt;
+import pegasus.DegDist;
+import pegasus.EigenTriangle;
+import pegasus.HEigen;
+import pegasus.Hadi;
+import pegasus.PagerankNaive;
+import pegasus.QToRitzMatrix;
+import pegasus.RitzVectorCMV;
+
+/**
+ * PlainGraph.java: the basic class that contains all the algorithms for 
+ *                  mining all types of graphs. It treats the graphs as
+ *                  undirected and unweighted.
+ */
+
+/**
+ * @author dkoutra
+ *
+ */
+public class PlainGraph implements PlainGraphInterface {
+	
+	String edgeFile = null;
+	String outputFolder = null;
+	String enc = null;
+	String nosymOrmakesym = null;
+	int reducers = 0;
+	int iterations = 0;
+	int evalsNo = 0;
+	long nodes = 0;
+	boolean debug = false;
+	
+	/**
+	 * @param edgeFile
+	 */
+	public PlainGraph( String edgeFile, int reducers, long nodes, String graphName, String enc, String nosymOrmakesym, int evalsNo, boolean debug, int iterations ) {
+		this.edgeFile = edgeFile;
+		this.reducers = reducers;
+		this.nodes = nodes;
+		outputFolder = graphName;
+		this.enc = enc;
+		this.nosymOrmakesym = nosymOrmakesym;
+		this.evalsNo = evalsNo;
+		this.iterations = iterations;
+		this.debug = debug;
+		computePlainStatistics();
+	}
+	
+	public void computePlainStatistics(){
+		computeInOutDegree();
+		if ( debug ) 
+			System.out.println("Finished executing the Degree Distribution...");
+		computePagerank();
+		if ( debug )
+			System.out.println("Finished executing the plain PageRank...");
+		computeRadius();
+		if ( debug )
+			System.out.println("Finished executing the plain Radius computation...");
+/*		computeConComp();
+		if ( debug )
+			System.out.println("Finished executing the plain Connected Components...");
+		computePCA();
+		if ( debug )
+			System.out.println("Finished executing PCA...");
+		// computeTriangles();
+		if ( debug )
+			System.out.println("Finished computing the triangles...");*/
+	}
+
+	@Override
+	public void computeInOutDegree() {
+		String[] args = new String[]{edgeFile, "dd_node_deg_inout", "dd_deg_count_inout", "inout", Integer.toString(reducers)};
+		try {
+			DegDist.main(args);
+			Perseus.moveFolders(outputFolder, "dd");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public void computePagerank() {
+		String[] pr_args = new String[]{edgeFile, "pr_tempmv_orig", "pr_output_orig", Long.toString(nodes), Integer.toString(reducers), Integer.toString(iterations), "nosym", "new", "pr_vector_orig", "pr_minmax_orig", "pr_distr_orig" }; 
+		try {
+			PagerankNaive.main(pr_args);
+			Perseus.moveFolders(outputFolder, "pr");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void computeRadius() {
+		String[] hadi_args = new String[]{edgeFile, outputFolder+"/hadi_curbm", outputFolder+"/hadi_tempbm", outputFolder+"/hadi_nextbm", outputFolder+"/hadi_output", Long.toString(nodes), Integer.toString(32), Integer.toString(reducers), enc, "newbm", "nosym", "max", outputFolder+"/hadi_output_orig", outputFolder+"/hadi_radius_summary_orig" };
+		try {
+			Hadi.main(hadi_args);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void computeConComp() {
+		String[] cc_args = new String[]{edgeFile, outputFolder+"/concmpt_curbm", outputFolder+"/concmpt_tempbm", outputFolder+"/concmpt_nextbm", outputFolder+"/concmpt_output", Long.toString(nodes), Integer.toString(reducers), "new", nosymOrmakesym, outputFolder+"/concmpt_summaryout" };
+		try {
+			ConCmpt.main(cc_args);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void computePCA() {
+		String[] heigen_args = new String[]{edgeFile, "lz_q1", Long.toString(nodes), Integer.toString(reducers), "nosym", Integer.toString(iterations), Integer.toString(1), "LM", Integer.toString(evalsNo), Integer.toString(1), "eig" };
+		try {
+			HEigen.main(heigen_args);
+			BufferedReader br = new BufferedReader(new InputStreamReader(new DataInputStream(new FileInputStream("lanczos.ab"))));
+			String strLine;
+			String[] parts = {};
+			while ( (strLine = br.readLine()) != null )
+				parts = strLine.split("\t");
+			String[] qtoritz_args = new String[]{parts[0], Integer.toString(reducers), "qmatrix", "null" };
+			QToRitzMatrix.main(qtoritz_args);
+			String[] ritzvec_args = new String[]{parts[0], Integer.toString(evalsNo), "lanczos.ab", Integer.toString(reducers), "LM", "qmatrix", "eig" };
+			RitzVectorCMV.main(ritzvec_args);
+			Perseus.moveFolders(outputFolder, "rz_");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public void computeTriangles() {
+		String[] triangles_args = new String[]{Integer.toString(reducers), "null" };
+		try {
+			EigenTriangle.main(triangles_args);
+			Perseus.moveFolders(outputFolder, "lz_tri");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+
+}
